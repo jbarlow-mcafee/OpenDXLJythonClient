@@ -14,7 +14,7 @@
 #    following acknowledgement:  This product includes software developed by the AT&T.
 # 4. Neither the name of AT&T nor the names of its contributors may be used to endorse or
 #    promote products derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY AT&T INTELLECTUAL PROPERTY ''AS IS'' AND ANY EXPRESS OR
 # IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 # MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
@@ -26,18 +26,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 
-from com.att.cso.opendxl.jython.client.interfaces import DxlPublisherInterface
+from com.att.cso.opendxl.jython.client.interfaces import DxlClientInterface
 from com.att.cso.opendxl.jython.client.exceptions import DxlJythonException
 
 import logging
-import os
-import sys
-import time
 
 from dxlclient.client import DxlClient
 from dxlclient.client_config import DxlClientConfig
-from dxlclient.message import Event
-
 
 # Enable logging, this will also direct built-in DXL log messages.
 # See - https://docs.python.org/2/howto/logging-cookbook.html
@@ -53,22 +48,21 @@ logger.setLevel(logging.WARN)
 
 
 # Configure local logger
-logger = logging.getLogger("EventPublisher")
+logger = logging.getLogger("Client")
 logger.setLevel(logging.INFO)
 
-
-class EventPublisher(DxlPublisherInterface):
-    
+class Client(DxlClientInterface):
     def __init__(self):
         self.client = None
-
-    def setClient(self, client):
-        self.client = client
+        self.config_file = None
 
     def connect(self, config_file="./dxlclient.config"):
         if self.isConnected():
             raise DxlJythonException(1100, "Already connected to the OpenDXL broker")
-            
+
+        if not self.config_file:
+            self.config_file = config_file
+
         try:
             logger.info("Reading configuration file from '%s'", config_file)
             config = DxlClientConfig.create_dxl_config_from_file(config_file)
@@ -83,37 +77,25 @@ class EventPublisher(DxlPublisherInterface):
         except Exception as e:
             logger.info("Exception: " + e.message)
             raise DxlJythonException(1000, "Unable to establish a connection with the DXL broker")
-        
-        
-    def sendMessage(self, topic="/dsa/dxl/test/event2", message="Default message"):
-        if not self.isConnected():
-            raise DxlJythonException(1200, "Not connected to a OpenDXL broker")
-        
-        try:
-            event = Event(topic)
 
-            # Encode string payload as UTF-8
-            event.payload = message.encode()
-
-            # Send event on DXL
-            logger.info("Sending '" + message + "' to '" + topic + "'")
-            self.client.send_event(event)
-
-            return "Event successfully posted to topic '%s'" % topic
-
-        except Exception as e:
-            logger.info("Exception: " + e.message)
-            raise DxlJythonException(1010, "Unable to communicate with a DXL broker")
-        
-        
     def disconnect(self):
         if not self.isConnected():
             return
-        
+
         self.client.disconnect()
-        
+
+    def destroy(self):
+        if self.client:
+            self.client.destroy()
+
     def isConnected(self):
         if self.client is None:
             return False
         return self.client.connected
-    
+
+    def add_event_callback(self, topic, callback):
+        if self.client:
+            self.client.add_event_callback(str(topic), callback)
+        else:
+            raise DxlJythonException(1200, "Not connected to a DXL broker")
+

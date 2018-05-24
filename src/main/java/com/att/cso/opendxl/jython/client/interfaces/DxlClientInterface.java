@@ -30,48 +30,38 @@
 
 package com.att.cso.opendxl.jython.client.interfaces;
 
+import com.att.cso.opendxl.jython.client.DxlMessage;
 import com.att.cso.opendxl.jython.client.exceptions.DxlJythonException;
 
 /**
- * Simple interface to bridge Java and Python modules to publish messages 
- * to DXL. Python modules should import this interface. i.e.
- *    from com.att.cso.opendxl.jython.client import DxlPublisherInterface
- * Should be at the top of your python source file.
+ * Simple callback interface to pass DxlMessage structure to Java processing
+ * module from the Python class.  The DxlMessage structure contains DXL fields
+ * as well as the payload of the message.
  */
-public interface DxlPublisherInterface {
-
-	public void setClient(DxlClientInterface client);
+public interface DxlClientInterface {
 
 	/**
 	 * Connect to the DXL fabric
-	 * 
+	 *
 	 * @param configFile location of the dxlclient.config file
 	 * @return String representing the state of the connection
 	 * @throws DxlJythonException Thrown when connection fails
 	 */
 	public String connect(String configFile) throws DxlJythonException;
-	
+
 	/**
 	 * Disconnect from the DXL fabric
-	 * 
+	 *
 	 * @return Null if disconnect is successful
 	 */
 	public String disconnect();
-	
+
+	public void destroy();
+
 	/**
 	 * Check if the connection to DXL is available
-	 * 
+	 *
 	 * @return True if connection is active
 	 */
 	public boolean isConnected();
-	
-	/**
-	 * Send a message to the DXL fabric using the topic supplied
-	 * 
-	 * @param topic DXL topic to be used to transmit the message
-	 * @param message DXL payload to be sent on the fabric
-	 * @return String indicating the state of the sent message
-	 * @throws DxlJythonException Thrown when there is an issue with sending data
-	 */
-	public String sendMessage(String topic, String message) throws DxlJythonException;
 }

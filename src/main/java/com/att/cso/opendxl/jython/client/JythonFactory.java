@@ -33,14 +33,10 @@ package com.att.cso.opendxl.jython.client;
 import java.io.InputStream;
 import java.util.Properties;
 
+import com.att.cso.opendxl.jython.client.interfaces.*;
 import org.python.util.PythonInterpreter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.att.cso.opendxl.jython.client.interfaces.DxlListenerInterface;
-import com.att.cso.opendxl.jython.client.interfaces.DxlProviderInterface;
-import com.att.cso.opendxl.jython.client.interfaces.DxlPublisherInterface;
-import com.att.cso.opendxl.jython.client.interfaces.DxlRequesterInterface;
 
 /**
  * Factory class to interact with the Jython standalone library that includes
@@ -48,6 +44,7 @@ import com.att.cso.opendxl.jython.client.interfaces.DxlRequesterInterface;
  *
  */
 public class JythonFactory {
+	private static final String CLIENT ="/com/att/cso/opendxl/jython/client/extensions/Client.py";
 	// Python class to publish events on OpenDXL
 	private static final String EVENT_PUBLISHER ="/com/att/cso/opendxl/jython/client/extensions/EventPublisher.py";
 	// Python class to call a service on OpenDXL
@@ -57,6 +54,8 @@ public class JythonFactory {
 	// Python class to provide a service on OpenDXL
 	private static final String SERVICE_PROVIDER = "/com/att/cso/opendxl/jython/client/extensions/ServiceProvider.py";
 
+	// Interface implemented in the client Python extensions
+	public static final String DXL_CLIENT_INTERFACE = "com.att.cso.opendxl.jython.client.interfaces.DxlClientInterface";
 	// Interface implemented in the client Python extensions
 	public static final String DXL_PUBLISHER_INTERFACE = "com.att.cso.opendxl.jython.client.interfaces.DxlPublisherInterface";
 	// Interface implemented in the provider Python extensions
@@ -141,7 +140,16 @@ public class JythonFactory {
 	private InputStream getResourceAsStream(String resource) {
 		return this.getClass().getResourceAsStream(resource);
 	}
-	
+
+	/**
+	 * Simple interface for pre-configured DXL Python client interfaces
+	 *
+	 * @return Object implementing the DxlClientInterface
+	 */
+	public DxlClientInterface getDxlClientInterface() {
+		return (DxlClientInterface)getJythonObject(DXL_CLIENT_INTERFACE, CLIENT, DEFAULT_JYTHON_LOCATION);
+	}
+
 	/**
 	 * Simple interface for pre-configured DXL Python publisher interfaces
 	 * This method will connect to a DXL client, send a message then

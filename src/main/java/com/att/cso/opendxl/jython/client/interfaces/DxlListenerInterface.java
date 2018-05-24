@@ -51,7 +51,19 @@ public interface DxlListenerInterface {
 	 * @throws DxlJythonException Thrown when unable to create a connection and start a listener
 	 */
 	public String start(String configFile, String topic, DxlCallbackInterface dxlCallback) throws DxlJythonException;
-	
+
+	/**
+	 * Provider start method to run the event listener, method does not
+	 * return until the listener is stopped.
+	 *
+	 * @param dxlClient dxl client to register the event listener with
+	 * @param topic topic name ("/my/service/foo/bar")
+	 * @param dxlCallback java callback implementation to process message payload
+	 * @return message that indicates reason for exiting the implementer
+	 * @throws DxlJythonException Thrown when unable to create a connection and start a listener
+	 */
+	public String start(DxlClientInterface dxlClient, String topic, DxlCallbackInterface dxlCallback) throws DxlJythonException;
+
 	/**
 	 * Stop the listener and destroy the connection to the DXL fabric
 	 */

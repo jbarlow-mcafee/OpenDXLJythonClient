@@ -26,14 +26,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 
+from com.att.cso.opendxl.jython.client.interfaces import DxlClientInterface
 from com.att.cso.opendxl.jython.client.interfaces import DxlListenerInterface
-from com.att.cso.opendxl.jython.client.interfaces import DxlCallbackInterface
 from com.att.cso.opendxl.jython.client import DxlMessage as JavaDxlMessage
 from com.att.cso.opendxl.jython.client.exceptions import DxlJythonException
 
 import logging
-import os
-import sys
 import time
 
 from dxlclient.callbacks import EventCallback
@@ -63,8 +61,36 @@ class EventListener(DxlListenerInterface):
     def __init__(self):
         self.started = False
         self.loop = True
-        
-    def start(self, config_file="./dxlclient.config", topic="/dsa/dxl/test/event2", dxl_callback=None):
+
+    def _start(self, add_callback_fn, topic, dxl_callback):
+        class MyEventCallback(EventCallback):
+            def __init__(self, dxl_callback):
+                self.dxlCallback = dxl_callback
+
+            def on_event(self, event):
+                dxl_message = JavaDxlMessage()
+                dxl_message.setTopic(event.destination_topic)
+                dxl_message.setMessageVersion(event.version)
+                dxl_message.setMessageId(event.message_id)
+                dxl_message.setClientId(event.source_client_id)
+                dxl_message.setBrokerId(event.source_broker_id)
+                dxl_message.setMessageType(event.message_type)
+                dxl_message.setBrokerIdList(event.broker_ids)
+                dxl_message.setClientIdList(event.client_ids)
+                dxl_message.setPayload(event.payload.decode())
+
+                self.dxlCallback.callbackEvent(dxl_message)
+
+        add_callback_fn(str(topic), MyEventCallback(dxl_callback))
+
+        self.started = True
+        while self.loop:
+            time.sleep(1)
+
+        logger.info("Shutting down event listener on topic '%s'", topic)
+        return "Shutting down event listener on topic '%s'" % topic
+
+    def start(self, client, topic="/dsa/dxl/test/event2", dxl_callback=None):
         if self.started:
             raise DxlJythonException(2000, "Already started")
         if not dxl_callback:
@@ -72,42 +98,23 @@ class EventListener(DxlListenerInterface):
                 
         try:
             logger.info("Starting event listener on topic '%s'", topic)
-            logger.info("Reading configuration file from '%s'", config_file)
-            config = DxlClientConfig.create_dxl_config_from_file(config_file)
-              
-            # Initialize DXL client using our configuration
-            with DxlClient(config) as client:
+            if isinstance(client, DxlClientInterface):
+                if not client.isConnected():
+                    client.connect()
+                self._start(client.add_event_callback, topic, dxl_callback)
+            else:
+                config_file=client or "./dxlclient.config"
+                logger.info("Reading configuration file from '%s'", config_file)
+                config = DxlClientConfig.create_dxl_config_from_file(config_file)
 
-                # Connect to DXL Broker
-                client.connect()
-            
-                class MyEventCallback(EventCallback):
-                    def __init__(self, dxl_callback):
-                        self.dxlCallback = dxl_callback
-                        
-                    def on_event(self, event):
-                        dxl_message = JavaDxlMessage()
-                        dxl_message.setTopic(event.destination_topic)
-                        dxl_message.setMessageVersion(event.version)
-                        dxl_message.setMessageId(event.message_id)
-                        dxl_message.setClientId(event.source_client_id)
-                        dxl_message.setBrokerId(event.source_broker_id)
-                        dxl_message.setMessageType(event.message_type)
-                        dxl_message.setBrokerIdList(event.broker_ids)
-                        dxl_message.setClientIdList(event.client_ids)
-                        dxl_message.setPayload(event.payload.decode())
+                # Initialize DXL client using our configuration
+                with DxlClient(config) as client:
 
-                        self.dxlCallback.callbackEvent(dxl_message)
-                
-                client.add_event_callback(str(topic), MyEventCallback(dxl_callback))
-                
-                self.started = True
-                while self.loop:
-                    time.sleep(1)
-                
-                logger.info("Shutting down event listener on topic '%s'", topic)
-                return "Shutting down event listener on topic '%s'" % topic
-                
+                    # Connect to DXL Broker
+                    client.connect()
+
+                    self._start(client.add_event_callback, topic, dxl_callback)
+
         except Exception as e:
             logger.error("Exception $s", e.message)
             raise DxlJythonException(1010, "Unable to communicate with a DXL broker")
